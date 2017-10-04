@@ -28,7 +28,7 @@
                        (Integer. Pclass)
                        ;Name
                        ;Sex
-                       (and (not-empty Age) (Double. Age))
+                       (or (and (not-empty Age) (Double. Age)) 0)
                        (Integer. SibSp)
                        (Integer. Parch)
                        ;Ticket
@@ -50,14 +50,19 @@
   (let [ds (shuffle (default-dataset))
         ds-count (count ds)
         train-ds (take (int (* 0.9 ds-count)) ds)
-        test-ds (drop (int (* 0.9 ds-count)) ds)
-        _ (train/train-n description train-ds test-ds
-                         :batch-size 50 :epoch-count 10
-                         :simple-loss-print? true)
-        trained-network (train/load-network "trained-network.nippy")
-        input-data [{:data [1 0 3 "Braund, Mr. Owen Harris" "male" 22.0 1 0 "A/5 21171" 7.25 "" "S"]}
-                    {:data [891 0 3 "Dooley, Mr. Patrick" "male" 32.0 0 0 "370376" 7.75 "" "Q"]}]
-        [[survived] [dead]] (->> (execute/run trained-network input-data)
+        test-ds (drop (int (* 0.9 ds-count)) ds)]
+    (train/train-n description train-ds test-ds
+                   :batch-size 50 :epoch-count 10
+                   :simple-loss-print? true)))
+
+(defn execute-model
+  [trained-network input-data]
+  (let [[[survived] [dead]] (->> (execute/run trained-network input-data)
                                  (map :labels))]
-    (println "Survived? " survived)
-    (println "Dead? " dead)))
+    (println "Survived? " (> survived 0.96))
+    (println "Dead? " (< dead 0.02))))
+
+(comment
+  (execute-model (train/load-network "trained-network.nippy")
+                 [{:data [1 0 3 "Braund, Mr. Owen Harris" "male" 22.0 1 0 "A/5 21171" 7.25 "" "S"]}
+                  {:data [891 0 3 "Dooley, Mr. Patrick" "male" 32.0 0 0 "370376" 7.75 "" "Q"]}]))
